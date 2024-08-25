@@ -19,8 +19,12 @@ export class CoursesService {
   @InjectRepository(Tag)
   private readonly tagRepository: Repository<Tag>;
 
-  async findAll() {
-    return this.courseRepository.find();
+  async findAll(): Promise<Course[]> {
+    const courses = await this.courseRepository.find();
+    if (courses.length == 0) {
+      throw new HttpException(`Nenhum Curso Cadastrado`, HttpStatus.NOT_FOUND);
+    }
+    return courses;
   }
 
   async findByOne(id: string) {
@@ -32,19 +36,25 @@ export class CoursesService {
         HttpStatus.NOT_FOUND,
       );
     }
-
     return course;
   }
 
   async create(createCourseDTO: CreateCourseDTO) {
-    const tags = await Promise.all(
-      createCourseDTO.tags.map((name) => this.preloadTagByName(name)),
-    );
-    const course = this.courseRepository.create({
-      ...createCourseDTO,
-      tags,
-    });
-    return this.courseRepository.save(course);
+    try {
+      const tags = await Promise.all(
+        createCourseDTO.tags.map((name) => this.preloadTagByName(name)),
+      );
+      const course = this.courseRepository.create({
+        ...createCourseDTO,
+        tags,
+      });
+      return this.courseRepository.save(course);
+    } catch (error) {
+      throw new HttpException(
+        'Falha ao cadastrar Curso',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   async update(id: string, updateCourseDTO: UpdateCourseDTO) {
